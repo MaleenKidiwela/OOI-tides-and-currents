@@ -1,0 +1,21 @@
+# --- Raw data (multi-GB OOI mSEED; not tracked) -------------------------------
+tidal/
+currentmeter/
+*.mseed
+
+# --- Generated figures (notebooks embed their own outputs) ---------------------
+figures/
+
+# --- Python / Jupyter cruft ---------------------------------------------------
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.virtual_documents/
+
+# --- Editor / OS --------------------------------------------------------------
+.DS_Store
+.vscode/
+.idea/
+
+# --- Local tooling config -----------------------------------------------------
+.claude/
