@@ -34,14 +34,6 @@ local `tidal/` and `currentmeter/` folders.
 See [`notebooks/README.md`](notebooks/README.md) for full details, the helper API,
 and the data-quality / units notes.
 
-## Key finding
-
-At HYSB1 the bottom currents are **tidally driven**: coherence with the tide is
-~0.95 (diurnal) / 0.77 (semidiurnal) — concentrated in the tidal bands — and the
-current leads the rise and fall of sea level by ~1.5–2 h, consistently across the
-major constituents. The tidal current runs nearly N–S (principal axis ~2° from
-North), indicating a mixed, mainly-progressive tidal regime.
-
 ## Setup
 
 ```bash
