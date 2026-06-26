@@ -1,0 +1,14 @@
+# Core scientific stack used by the notebooks and oceanlib.py
+obspy>=1.4
+numpy>=1.24
+pandas>=2.0
+scipy>=1.10
+matplotlib>=3.7
+
+# Jupyter (to run / regenerate the notebooks)
+jupyterlab>=4.0
+nbformat>=5.9
+nbconvert>=7.0
+
+# Optional: cross-check for the harmonic analysis in notebook 04
+# utide>=0.3

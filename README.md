@@ -45,13 +45,15 @@ North), indicating a mixed, mainly-progressive tidal regime.
 ## Setup
 
 ```bash
-# Python 3 with: obspy, numpy, pandas, scipy, matplotlib, jupyter
-pip install obspy numpy pandas scipy matplotlib jupyterlab
-# optional cross-check for notebook 04:
-pip install utide
+pip install -r requirements.txt   # obspy, numpy, pandas, scipy, matplotlib, jupyter
+# optional cross-check for notebook 04:  pip install utide
 
 jupyter lab          # then open notebooks/00_dataset_overview.ipynb
 ```
 
 Regenerate the notebooks from source: `python notebooks/_build_notebooks.py`
 (or one at a time: `python notebooks/_build_notebooks.py 06_tide_current_relationship.ipynb`).
+
+## License
+
+[MIT](LICENSE).
