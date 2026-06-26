@@ -26,6 +26,13 @@ def objectives(*items):
               "\n".join(f"> - {x}" for x in items))
 
 
+def questions(*items):
+    return md("> ❓ **Questions to answer**\n>\n"
+              "> Work these out yourself as you go — jot your answers in a new cell. "
+              "The recap at the end lets you check.\n>\n" +
+              "\n".join(f"> {i+1}. {x}" for i, x in enumerate(items)))
+
+
 def seeing(text):
     return md(f"> 👀 **What you're seeing**\n>\n> {text}")
 
@@ -93,6 +100,12 @@ This first notebook explores the **`tidal/` pressure-gauge dataset**.
             "The two **channels** in this dataset (pressure vs temperature)",
             "How to build a quick *catalog* of 30,000 files without opening them",
             "How to see, at a glance, which station has data on which dates",
+        ),
+        questions(
+            "How many distinct channels are there, and what physical quantity does each one carry?",
+            "Why does a single station sometimes have two channels for the *same* variable?",
+            "Which station has the longest span of data? Which has the least?",
+            "Roughly how many years does the whole archive cover?",
         ),
         md("""
 ## Background: where does this data come from?
@@ -285,6 +298,12 @@ at two zoom levels — a single day, and many months.
             "Understand why we *decimate* (down-sample) for long-term views",
             "Compare the same variable across all three stations",
         ),
+        questions(
+            "In the one-day pressure plot, how many high and low tides occur in 24 h?",
+            "Roughly how big is the daily tidal range (in dbar ≈ m)?",
+            "Once the tides blur together in the long-term view, what feature dominates the pressure record? Is it the same for temperature?",
+            "Does temperature have a seasonal cycle? When is it warmest/coldest?",
+        ),
         md("""
 ## The core idea: ask only for what you need
 
@@ -440,6 +459,12 @@ fingerprint on temperature?
             "Understand why we 'high-pass' before correlating",
             "Read a scatter plot and a correlation coefficient",
         ),
+        questions(
+            "On the twin-axis day plot, does temperature share the tide's rhythm? If so, do its peaks line up with the pressure peaks or lag them?",
+            "Is the pressure–temperature correlation strong or weak? Positive or negative?",
+            "Does the correlation change when you shorten the high-pass window? What does that suggest?",
+            "Which station shows the clearest coupling between the two variables?",
+        ),
         md("""
 ## The challenge: two very different scales
 
@@ -564,6 +589,12 @@ shows three classic "day views".
             "Overlay many days on one 24-hour axis ('spaghetti plot')",
             "Make an hour-of-day × date heatmap",
             "Recognise the spring–neap cycle and the daily ~50-min tide drift",
+        ),
+        questions(
+            "Estimate how much later the tide arrives each day. What astronomical fact explains that shift?",
+            "From the heatmap, find a spring (big) and a neap (small) period — how many days apart are successive springs?",
+            "Does the tide here look diurnal (one cycle/day), semidiurnal (two), or mixed?",
+            "Do you see the same patterns if you switch the variable to temperature?",
         ),
         md("""
 ## Two things to watch for
@@ -705,6 +736,13 @@ cross-check against the `utide` package.
             "Use the fit to PREDICT the tide and SUBTRACT it",
             "Read constituent amplitudes and the tidal 'form factor'",
             "Confirm with a spectrum that the tidal peaks are gone",
+        ),
+        questions(
+            "Which constituent is largest at this site? What does the form factor say about the tide type?",
+            "What fraction of the pressure variance is tidal?",
+            "Is the out-of-sample score close to the in-sample score? Why does that matter?",
+            "After de-tiding, what's left in the residual — and what physical process might cause it?",
+            "When you lengthen the record, which constituents' amplitudes change most, and why?",
         ),
         md(r"""
 ## The big idea (no equations yet)
@@ -1083,6 +1121,12 @@ current-meter views from those.
             "Read a current rose (where the water goes, how fast)",
             "Relate the currents to the tide from notebook 04",
         ),
+        questions(
+            "Which compass direction does the current mostly flow along? Does it reverse back-and-forth or rotate?",
+            "How fast is a typical current here? Is that big or small compared with surface ocean currents?",
+            "Does the current speed pulse in step with the tide? When in the tidal cycle is it fastest?",
+            "From the progressive vector diagram, is there a net drift, or mostly tidal sloshing?",
+        ),
         md("""
 > ⚠️ **Data note (read me).** This is a *partial download* — right now the
 > current meter data is essentially all from one station (**HYSB1**); more
@@ -1309,6 +1353,14 @@ frequencies, and the current leads the tide by ~X hours" — a quantitative answ
             "Test relatedness with: overlay, lagged cross-correlation, coherence spectrum",
             "Measure the phase lag between tide and current per constituent (harmonic)",
             "Interpret the lag physically (progressive vs standing tidal wave)",
+        ),
+        questions(
+            "At which frequencies are the tide and current most coherent? What does that tell you about what drives the currents?",
+            "Does the current lead or lag the tide, and by roughly how many hours?",
+            "Is that lead/lag consistent across the major constituents (M2, K1, O1)? Why does consistency matter?",
+            "Do the cross-correlation lag and the harmonic M2 lag agree?",
+            "Based on the phase lag, is this closer to a progressive or a standing tidal wave?",
+            "Overall: are the tide and the currents related? What's your evidence?",
         ),
         md(r"""
 ## The physics, briefly
