@@ -215,16 +215,24 @@ def load(station: str, variable: str, start, end,
     if len(st):
         st.trim(UTCDateTime(start), UTCDateTime(end + pd.Timedelta(days=1)))
     if merge and len(st) > 1:
-        # Daily files store the same nominal rate with tiny float jitter
-        # (e.g. 0.9999997 vs 0.9999996 Hz), which makes merge() raise
-        # "Sampling rate differs". Snap near-identical rates to their median.
+        # Daily files store the same nominal rate with float jitter — usually
+        # ~1e-7 but up to ~5e-4 on short gap-day segments — which makes merge()
+        # raise "Sampling rate differs". Genuinely different rates here differ
+        # by 15x (L- vs U-band), so snapping anything within 1% of the median
+        # to the median is unambiguous.
         rates = np.array([tr.stats.sampling_rate for tr in st])
         med = np.median(rates)
         for tr in st:
-            if abs(tr.stats.sampling_rate - med) / med < 1e-4:
+            if abs(tr.stats.sampling_rate - med) / med < 0.01:
                 tr.stats.sampling_rate = med
-        # fill_value=None keeps gaps as masked arrays (won't fabricate data)
-        st.merge(method=1, fill_value=None)
+        try:
+            # fill_value=None keeps gaps as masked arrays (won't fabricate data)
+            st.merge(method=1, fill_value=None)
+        except Exception:
+            # Still unmergeable (exotic metadata mismatch): leave the traces
+            # separate — to_series() concatenates and de-duplicates them anyway,
+            # so callers get a usable series instead of a crash.
+            pass
     return st
 
 
