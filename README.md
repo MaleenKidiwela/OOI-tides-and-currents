@@ -34,6 +34,13 @@ local `tidal/` and `currentmeter/` folders.
 See [`notebooks/README.md`](notebooks/README.md) for full details, the helper API,
 and the data-quality / units notes.
 
+## Web viewer
+
+An interactive local web UI to pick a station + datetime window and plot pressure
+(with optional temperature, a de-tide view, and current-meter velocity) lives in
+[`webapp/`](webapp/) — run `cd webapp && python app.py` and open
+<http://127.0.0.1:8000>. See [`webapp/README.md`](webapp/README.md).
+
 ## Setup
 
 ```bash

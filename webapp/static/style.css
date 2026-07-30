@@ -1,0 +1,78 @@
+:root {
+  --bg: #0f1720;
+  --panel: #17212b;
+  --ink: #e6edf3;
+  --muted: #9fb0c0;
+  --accent: #4aa3df;
+  --line: #26333f;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  padding: 0 20px 40px;
+}
+header { padding: 22px 0 6px; }
+h1 { margin: 0; font-size: 22px; font-weight: 650; letter-spacing: .2px; }
+.sub { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 18px;
+  align-items: flex-end;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin: 16px 0;
+}
+.ctrl { display: flex; flex-direction: column; gap: 5px; }
+.ctrl label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+select, input[type="datetime-local"] {
+  background: #0d141b;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 7px 9px;
+  font-size: 14px;
+}
+.toggles { flex-direction: row; gap: 16px; align-items: center; }
+.toggles label { display: flex; align-items: center; gap: 6px; text-transform: none; letter-spacing: 0; font-size: 14px; color: var(--ink); }
+button {
+  background: var(--accent);
+  color: #04121d;
+  border: 0;
+  border-radius: 7px;
+  padding: 9px 18px;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+}
+button:hover { filter: brightness(1.07); }
+button:disabled { opacity: .55; cursor: progress; }
+
+.status { min-height: 20px; margin: 4px 2px; color: var(--muted); }
+.status.err { color: #ff8a80; }
+
+.info {
+  display: flex; flex-wrap: wrap; gap: 8px 22px;
+  color: var(--muted); font-size: 13.5px; margin: 2px 2px 12px;
+}
+.info b { color: var(--ink); font-weight: 600; }
+
+#plot { width: 100%; min-height: 200px; }
+
+.tide { margin-top: 18px; }
+.tide h3 { margin: 0 0 6px; font-size: 16px; }
+.tide .summary { color: var(--muted); margin-bottom: 10px; }
+.tide .summary b { color: var(--ink); }
+table { border-collapse: collapse; font-size: 13.5px; }
+th, td { text-align: right; padding: 5px 12px; border-bottom: 1px solid var(--line); }
+th:first-child, td:first-child { text-align: left; }
+th { color: var(--muted); font-weight: 600; }
+
+footer { margin-top: 30px; color: var(--muted); font-size: 12.5px; border-top: 1px solid var(--line); padding-top: 12px; }
+code { background: #0d141b; padding: 1px 5px; border-radius: 4px; }

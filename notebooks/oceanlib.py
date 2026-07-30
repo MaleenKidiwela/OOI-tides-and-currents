@@ -1,13 +1,20 @@
 """
 oceanlib.py — shared helpers for exploring the OOI seafloor mSEED dataset.
 
-The data originally shipped as two *byte-identical* folders (`currentmeter/` and
-`tidal/`) — same files, copied. The duplicate may since have been deleted;
-`DATA_DIR` below auto-selects whichever folder still exists. Each daily mSEED
-file holds ONE channel for ONE station/day.
+There are TWO separate datasets, in two folders:
 
-NOTE: despite the `currentmeter/` name, there is NO current/velocity data here —
-the only channels are pressure (`*DO`) and temperature (`*K1`).
+  * `tidal/`        — a bottom PRESSURE gauge (+ temperature): the tide/sea-level
+                      signal. Flat folder, location code "10". Handled by
+                      `build_catalog` / `load_series` / `load_decimated` below.
+  * `currentmeter/` — a current meter's 3-D water VELOCITY (+ temperature), in
+                      `currentmeter/<year>/` subfolders, location code "20".
+                      Handled by the CURRENT-METER section further down.
+
+(Historically the pressure data shipped duplicated as a *byte-identical* copy in
+`currentmeter/`; that duplicate was removed and the folder repurposed for the
+genuine current-meter data. `DATA_DIR` still auto-selects whichever pressure-gauge
+folder is present, so a half-migrated tree keeps working.) Each daily mSEED file
+holds ONE channel for ONE station/day.
 
 Filename convention (SEED day-volume style)::
 
@@ -60,6 +67,17 @@ DATA_DIR = _pick_data_dir()
 FIG_DIR = os.path.join(ROOT, "figures")
 
 STATIONS = ["AXBA1", "HYSB1", "HYS14"]
+
+# Station geography (OOI Regional Cabled Array primary infrastructure sites).
+# lat/lon in degrees (lon negative = west); depth in metres. Coordinates are
+# from OOI RCA public documentation and are approximate (good to ~0.1°, which is
+# plenty for tidal nodal corrections) — confirm against OOI asset metadata if you
+# need survey precision. `depth_m` matches the mean pressure each site reads.
+STATION_META = {
+    "AXBA1": {"name": "Axial Base",            "lat": 45.93, "lon": -129.98, "depth_m": 2607},
+    "HYSB1": {"name": "Slope Base",            "lat": 44.51, "lon": -125.38, "depth_m": 2900},
+    "HYS14": {"name": "Southern Hydrate Ridge", "lat": 44.57, "lon": -125.15, "depth_m": 790},
+}
 
 # --- Unit calibration --------------------------------------------------------
 # The pressure channels are stored as integer "counts". The conversion to
@@ -158,6 +176,21 @@ def channel_for(station: str, variable: str, data_dir: str = DATA_DIR) -> str:
     return channels_for(station, variable, data_dir).index[0]
 
 
+# Nominal sample spacing per SEED band letter (channel code's first letter):
+# L-band = 1 s, U-band = 15 s. Used to stitch a station's channels in
+# highest-rate-first order when it switched bands mid-record
+# (HYS14: UDO→LDO Aug 2017; HYSB1: UDO→LDO Jun 2018).
+_BAND_SECONDS = {"L": 1.0, "U": 15.0}
+
+
+def _channels_to_stitch(station, variable, data_dir, channel):
+    """Channel codes to load, highest-rate first (forced to one if `channel=`)."""
+    if channel is not None:
+        return [channel]
+    chans = channels_for(station, variable, data_dir).index
+    return sorted(chans, key=lambda c: _BAND_SECONDS.get(c[0], float("inf")))
+
+
 def load(station: str, variable: str, start, end,
          data_dir: str = DATA_DIR, merge: bool = True, channel: str | None = None) -> Stream:
     """Load a station/variable between two dates (inclusive of the day range).
@@ -182,6 +215,14 @@ def load(station: str, variable: str, start, end,
     if len(st):
         st.trim(UTCDateTime(start), UTCDateTime(end + pd.Timedelta(days=1)))
     if merge and len(st) > 1:
+        # Daily files store the same nominal rate with tiny float jitter
+        # (e.g. 0.9999997 vs 0.9999996 Hz), which makes merge() raise
+        # "Sampling rate differs". Snap near-identical rates to their median.
+        rates = np.array([tr.stats.sampling_rate for tr in st])
+        med = np.median(rates)
+        for tr in st:
+            if abs(tr.stats.sampling_rate - med) / med < 1e-4:
+                tr.stats.sampling_rate = med
         # fill_value=None keeps gaps as masked arrays (won't fabricate data)
         st.merge(method=1, fill_value=None)
     return st
@@ -209,9 +250,17 @@ def to_series(st: Stream) -> pd.Series:
 def load_series(station, variable, start, end, data_dir=DATA_DIR, channel=None,
                 raw=False) -> pd.Series:
     """Convenience: load() + to_series() in one call, returned in physical units
-    (pressure in dbar, temperature in °C). Pass raw=True to keep instrument counts."""
-    s = to_series(load(station, variable, start, end, data_dir, channel=channel))
-    return _to_physical(s, variable, raw=raw)
+    (pressure in dbar, temperature in °C). Pass raw=True to keep instrument counts.
+
+    If the station switched bands mid-record (UDO→LDO), ALL channels carrying
+    the variable are loaded and stitched into one seamless series, the
+    higher-rate channel winning where they overlap. Pass channel= to force one.
+    """
+    out = pd.Series(dtype=float)
+    for cha in _channels_to_stitch(station, variable, data_dir, channel):
+        s = to_series(load(station, variable, start, end, data_dir, channel=cha))
+        out = s if out.empty else out.combine_first(s)
+    return _to_physical(out, variable, raw=raw)
 
 
 def load_decimated(station, variable, start, end, rule="1h",
@@ -222,28 +271,34 @@ def load_decimated(station, variable, start, end, rule="1h",
     Returned in physical units (dbar / °C) unless raw=True.
 
     `rule` is any pandas offset ('1h', '10min', '1D').  `how` in {mean, median}.
+
+    Like `load_series`, stitches ALL channels carrying the variable (UDO + LDO)
+    into one seamless series; pass channel= to force a single one.
     """
     start, end = pd.Timestamp(start), pd.Timestamp(end)
-    cha = channel or channel_for(station, variable, data_dir)
 
-    chunks = []
-    day = start.normalize()
-    while day <= end:
-        doy = day.dayofyear
-        pat = os.path.join(data_dir, f"OO.{station}.*.{cha}.{day.year}.{doy:03d}.*.mseed")
-        for f in glob.glob(pat):
-            s = to_series(read(f))
-            if len(s):
-                r = s.resample(rule)
-                chunks.append(r.mean() if how == "mean" else r.median())
-        day += pd.Timedelta(days=1)
+    out = pd.Series(dtype=float)
+    for cha in _channels_to_stitch(station, variable, data_dir, channel):
+        chunks = []
+        day = start.normalize()
+        while day <= end:
+            doy = day.dayofyear
+            pat = os.path.join(data_dir, f"OO.{station}.*.{cha}.{day.year}.{doy:03d}.*.mseed")
+            for f in glob.glob(pat):
+                s = to_series(read(f))
+                if len(s):
+                    r = s.resample(rule)
+                    chunks.append(r.mean() if how == "mean" else r.median())
+            day += pd.Timedelta(days=1)
+        if chunks:
+            s = pd.concat(chunks).sort_index()
+            s = s[~s.index.duplicated(keep="first")]
+            out = s if out.empty else out.combine_first(s)
 
-    if not chunks:
+    if out.empty:
         return pd.Series(dtype=float)
-    s = pd.concat(chunks).sort_index()
-    s = s[~s.index.duplicated(keep="first")]
-    s = s.loc[start:end + pd.Timedelta(days=1)]
-    return _to_physical(s, variable, raw=raw)
+    out = out.loc[start:end + pd.Timedelta(days=1)]
+    return _to_physical(out, variable, raw=raw)
 
 
 # ===========================================================================
@@ -419,6 +474,84 @@ def harmonic_fit(series, constituents=None, with_trend=True, t0=None):
         tide += coef[f"{k}_cos"] * np.cos(w * th) + coef[f"{k}_sin"] * np.sin(w * th)
     tide = pd.Series(tide, index=series.index)
     return {"amps": amps, "tide": tide, "residual": series - tide, "coef": coef, "t0": t0}
+
+
+def _tide_kind(F):
+    """Classify a tide from its form factor F = (K1+O1)/(M2+S2)."""
+    if not np.isfinite(F):
+        return "unknown"
+    return ("semidiurnal" if F < 0.25 else "mixed, mainly semidiurnal" if F < 1.5
+            else "mixed, mainly diurnal" if F < 3 else "diurnal")
+
+
+def tidal_model(series, lat=None, method="auto", constituents="auto"):
+    """Best-available tidal harmonic model for a pressure / sea-level Series.
+
+    `method="auto"` (default) uses **utide** — the latitude-aware standard method
+    (nodal & satellite corrections, Rayleigh-based automatic constituent
+    selection, confidence intervals) — when it is importable, and otherwise falls
+    back to the pure-NumPy `harmonic_fit()`. `method="utide"` requires utide
+    (raises if missing); `method="lstsq"` forces the built-in fit.
+
+    `lat` (degrees, from `STATION_META`) is required by utide for the nodal
+    corrections — that latitude *is* the "best model for this location" input.
+
+    Returns a uniform, JSON-friendly-ish dict::
+
+        method               "utide" or "lstsq"
+        tide                 reconstructed tide Series (aligned to input index)
+        residual             series - tide  (the non-tidal signal)
+        constituents         [{name, amp, phase_deg, period_h}], largest first
+        form_factor          (K1+O1)/(M2+S2)
+        kind                 tide-type label from the form factor
+        variance_explained   1 - var(residual)/var(series)
+    """
+    s = series.dropna()
+
+    use_utide = method in ("auto", "utide")
+    if use_utide:
+        try:
+            import utide  # noqa: F401
+        except ImportError:
+            if method == "utide":
+                raise
+            use_utide = False
+
+    if use_utide:
+        if lat is None:
+            raise ValueError("utide tidal_model needs `lat` (degrees) for nodal corrections")
+        import utide
+        # Hand utide the DatetimeIndex directly — it converts to its own epoch
+        # internally (the absolute calendar time matters for nodal corrections).
+        coef = utide.solve(s.index, s.values.astype(float), lat=lat, method="ols",
+                           conf_int="linear", trend=True,
+                           constit=("auto" if constituents == "auto" else constituents),
+                           verbose=False)
+        recon = utide.reconstruct(s.index, coef, verbose=False)
+        tide = pd.Series(np.asarray(recon["h"]), index=s.index)
+        # coef.name and coef.A/coef.g are co-ordered (by energy). Take period from
+        # our own speed table by name (utide's aux arrays aren't reordered, so
+        # zipping them with coef.name would misalign).
+        cons = [{"name": n, "amp": float(a), "phase_deg": float(g),
+                 "period_h": (360.0 / TIDAL_SPEEDS[n]) if n in TIDAL_SPEEDS else float("nan")}
+                for n, a, g in zip(coef.name, coef.A, coef.g)]
+        amp = {c["name"]: c["amp"] for c in cons}
+        mname = "utide"
+    else:
+        fit = harmonic_fit(s, constituents=None if constituents == "auto" else constituents)
+        tide = fit["tide"]
+        amps = fit["amps"].sort_values("amplitude", ascending=False)
+        cons = [{"name": k, "amp": float(r.amplitude), "phase_deg": float(r.phase_deg),
+                 "period_h": float(r.period_h)} for k, r in amps.iterrows()]
+        amp = {c["name"]: c["amp"] for c in cons}
+        mname = "lstsq"
+
+    resid = s - tide
+    denom = amp.get("M2", 0.0) + amp.get("S2", 0.0)
+    F = (amp.get("K1", 0.0) + amp.get("O1", 0.0)) / denom if denom else float("nan")
+    return {"method": mname, "tide": tide, "residual": resid, "constituents": cons,
+            "form_factor": float(F), "kind": _tide_kind(F),
+            "variance_explained": float(1 - resid.var() / s.var())}
 
 
 def principal_axis(east, north):

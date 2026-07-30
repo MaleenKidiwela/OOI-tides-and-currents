@@ -10,5 +10,10 @@ jupyterlab>=4.0
 nbformat>=5.9
 nbconvert>=7.0
 
-# Optional: cross-check for the harmonic analysis in notebook 04
+# Web viewer (webapp/)
+flask>=3.0
+
+# Optional but recommended: enables the latitude-aware tidal model in the web
+# viewer's "de-tide" view and cross-checks notebook 04. Without it, oceanlib
+# falls back to the built-in NumPy least-squares fit.
 # utide>=0.3

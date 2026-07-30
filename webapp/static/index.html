@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OOI seafloor viewer — pressure, tides &amp; currents</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+</head>
+<body>
+  <header>
+    <h1>OOI seafloor viewer</h1>
+    <p class="sub">Bottom pressure (tides) · temperature · currents — pick a station and a time window.</p>
+  </header>
+
+  <section class="controls">
+    <div class="ctrl">
+      <label for="station">Station</label>
+      <select id="station"></select>
+    </div>
+    <div class="ctrl">
+      <label for="channel">Pressure band</label>
+      <select id="channel"></select>
+    </div>
+    <div class="ctrl">
+      <label for="start">Start (UTC)</label>
+      <input type="datetime-local" id="start" step="1">
+    </div>
+    <div class="ctrl">
+      <label for="end">End (UTC)</label>
+      <input type="datetime-local" id="end" step="1">
+    </div>
+    <div class="ctrl toggles">
+      <label><input type="checkbox" id="t-temp"> Temperature</label>
+      <label><input type="checkbox" id="t-detide"> De-tide</label>
+      <label><input type="checkbox" id="t-current"> Current meter</label>
+    </div>
+    <div class="ctrl">
+      <button id="load">Load &amp; plot</button>
+    </div>
+  </section>
+
+  <p id="status" class="status"></p>
+  <div id="info" class="info"></div>
+
+  <div id="plot"></div>
+
+  <div id="tide" class="tide"></div>
+
+  <footer>
+    Data: Ocean Observatories Initiative (OOI) Regional Cabled Array · served locally from your <code>tidal/</code> &amp; <code>currentmeter/</code> folders.
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
